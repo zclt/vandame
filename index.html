@@ -133,7 +133,7 @@
                 <svg class="w-4 h-4 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
               </div>
             </div>
-            <p class="text-2xl font-700 text-brand-text">48</p>
+            <p id="stat-total" class="text-2xl font-700 text-brand-text">—</p>
             <p class="text-xs text-brand-muted mt-1"><span class="text-primary font-600">+6</span> esta semana</p>
           </div>
 
@@ -144,7 +144,7 @@
                 <svg class="w-4 h-4 text-blue-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
               </div>
             </div>
-            <p class="text-2xl font-700 text-brand-text">12</p>
+            <p id="stat-doing" class="text-2xl font-700 text-brand-text">—</p>
             <p class="text-xs text-brand-muted mt-1"><span class="text-blue-500 font-600">3</span> com prazo hoje</p>
           </div>
 
@@ -155,8 +155,8 @@
                 <svg class="w-4 h-4 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
               </div>
             </div>
-            <p class="text-2xl font-700 text-brand-text">31</p>
-            <p class="text-xs text-brand-muted mt-1"><span class="text-emerald-500 font-600">64%</span> do total</p>
+            <p id="stat-done" class="text-2xl font-700 text-brand-text">—</p>
+            <p class="text-xs text-brand-muted mt-1"><span id="stat-done-pct" class="text-emerald-500 font-600">0%</span> do total</p>
           </div>
 
           <div class="stat-card bg-white rounded-xl border border-teal-100 p-4">
@@ -166,7 +166,7 @@
                 <svg class="w-4 h-4 text-red-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
               </div>
             </div>
-            <p class="text-2xl font-700 text-brand-text">5</p>
+            <p id="stat-overdue" class="text-2xl font-700 text-brand-text">—</p>
             <p class="text-xs text-brand-muted mt-1"><span class="text-red-500 font-600">-2</span> vs semana passada</p>
           </div>
         </div>
@@ -270,24 +270,43 @@
   </div>
 
 <script>
-  /* ── Data ── */
-  const tasks = [
-    { id:1, title:'Atualizar design system do app',          project:'Design',      due:'12/04',  status:'doing', priority:'alta'  },
-    { id:2, title:'Implementar autenticação com OAuth',       project:'Dev',         due:'14/04',  status:'todo',  priority:'alta'  },
-    { id:3, title:'Escrever copy para campanha de e-mail',    project:'Marketing',   due:'13/04',  status:'doing', priority:'media' },
-    { id:4, title:'Revisar roadmap do produto Q2',            project:'Produto',     due:'15/04',  status:'todo',  priority:'media' },
-    { id:5, title:'Corrigir bug no fluxo de pagamento',       project:'Dev',         due:'11/04',  status:'done',  priority:'alta'  },
-    { id:6, title:'Criar protótipo da nova home',             project:'Design',      due:'16/04',  status:'todo',  priority:'baixa' },
-    { id:7, title:'Publicar post no blog sobre performance',  project:'Marketing',   due:'10/04',  status:'done',  priority:'media' },
-    { id:8, title:'Mapear integrações com parceiros',         project:'Produto',     due:'18/04',  status:'todo',  priority:'baixa' },
+  /* ── Storage ── */
+  const STORAGE_KEY = 'taskflow_tasks';
+
+  const DEFAULT_TASKS = [
+    { id:1, title:'Atualizar design system do app',          project:'Design',    due:'2026-04-12', status:'doing', priority:'alta'  },
+    { id:2, title:'Implementar autenticação com OAuth',       project:'Dev',       due:'2026-04-14', status:'todo',  priority:'alta'  },
+    { id:3, title:'Escrever copy para campanha de e-mail',    project:'Marketing', due:'2026-04-13', status:'doing', priority:'media' },
+    { id:4, title:'Revisar roadmap do produto Q2',            project:'Produto',   due:'2026-04-15', status:'todo',  priority:'media' },
+    { id:5, title:'Corrigir bug no fluxo de pagamento',       project:'Dev',       due:'2026-04-11', status:'done',  priority:'alta'  },
+    { id:6, title:'Criar protótipo da nova home',             project:'Design',    due:'2026-04-16', status:'todo',  priority:'baixa' },
+    { id:7, title:'Publicar post no blog sobre performance',  project:'Marketing', due:'2026-04-10', status:'done',  priority:'media' },
+    { id:8, title:'Mapear integrações com parceiros',         project:'Produto',   due:'2026-04-18', status:'todo',  priority:'baixa' },
   ];
 
-  const projects = [
-    { name:'Design',      done:7,  total:10, color:'#0D9488' },
-    { name:'Dev',         done:12, total:18, color:'#3B82F6' },
-    { name:'Marketing',   done:8,  total:11, color:'#A855F7' },
-    { name:'Produto',     done:4,  total:9,  color:'#F97316' },
-  ];
+  let tasks = (() => {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || DEFAULT_TASKS; }
+    catch { return DEFAULT_TASKS; }
+  })();
+
+  function saveTasks() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+  }
+
+  /* ── Date helpers ── */
+  const PROJECT_COLORS = { Design:'#0D9488', Dev:'#3B82F6', Marketing:'#A855F7', Produto:'#F97316' };
+
+  function formatDue(iso) {
+    if (!iso || iso === '—') return '—';
+    const [, m, d] = iso.split('-');
+    return `${d}/${m}`;
+  }
+
+  function isDuePast(iso) {
+    if (!iso || iso === '—') return false;
+    const today = new Date(); today.setHours(0,0,0,0);
+    return new Date(iso) < today;
+  }
 
   /* ── Helpers ── */
   const statusLabel = { todo:'A Fazer', doing:'Em Andamento', done:'Concluída' };
@@ -303,46 +322,102 @@
   };
   const priorityLabel = { alta:'Alta', media:'Média', baixa:'Baixa' };
 
-  /* ── Render tasks ── */
+  /* ── Stats ── */
+  function renderStats() {
+    const total   = tasks.length;
+    const doing   = tasks.filter(t => t.status === 'doing').length;
+    const done    = tasks.filter(t => t.status === 'done').length;
+    const overdue = tasks.filter(t => t.status !== 'done' && isDuePast(t.due)).length;
+    const pct     = total ? Math.round((done / total) * 100) : 0;
+
+    document.getElementById('stat-total').textContent   = total;
+    document.getElementById('stat-doing').textContent   = doing;
+    document.getElementById('stat-done').textContent    = done;
+    document.getElementById('stat-done-pct').textContent = pct + '%';
+    document.getElementById('stat-overdue').textContent = overdue;
+  }
+
+  /* ── Project progress (computed from tasks) ── */
+  function renderProjects() {
+    const container = document.getElementById('project-progress');
+    container.innerHTML = '';
+
+    Object.entries(PROJECT_COLORS).forEach(([name, color]) => {
+      const projectTasks = tasks.filter(t => t.project === name);
+      const done  = projectTasks.filter(t => t.status === 'done').length;
+      const total = projectTasks.length;
+      const pct   = total ? Math.round((done / total) * 100) : 0;
+
+      const el = document.createElement('div');
+      el.innerHTML = `
+        <div class="flex items-center justify-between mb-1.5">
+          <span class="text-xs font-600 text-brand-text">${name}</span>
+          <span class="text-xs text-brand-muted">${done}/${total}</span>
+        </div>
+        <div class="w-full h-2 bg-teal-50 rounded-full overflow-hidden">
+          <div class="progress-bar h-full rounded-full" style="width:0%; background:${color};" data-target="${pct}"></div>
+        </div>
+      `;
+      container.appendChild(el);
+    });
+
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      container.querySelectorAll('.progress-bar').forEach(bar => {
+        bar.style.width = bar.dataset.target + '%';
+      });
+    }));
+  }
+
+  /* ── Task list ── */
   let filter = 'all';
 
   function renderTasks() {
     const list = document.getElementById('task-list');
     const filtered = filter === 'all' ? tasks : tasks.filter(t => t.status === filter);
     list.innerHTML = '';
+
     if (!filtered.length) {
       list.innerHTML = `<p class="text-sm text-brand-muted text-center py-8">Nenhuma tarefa encontrada.</p>`;
       return;
     }
+
     filtered.forEach(task => {
       const row = document.createElement('div');
       row.className = 'task-card grid grid-cols-1 sm:grid-cols-[1fr_140px_100px_100px_80px] gap-2 sm:gap-3 items-center px-3 py-3 rounded-lg border border-transparent hover:border-teal-100 hover:bg-teal-50/30 cursor-pointer';
       row.setAttribute('role', 'listitem');
+      const overdue = task.status !== 'done' && isDuePast(task.due);
       row.innerHTML = `
         <div class="flex items-center gap-3 min-w-0">
           <button class="checkbox-custom w-5 h-5 rounded-md border-2 flex-shrink-0 flex items-center justify-center cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/40 ${task.status === 'done' ? 'bg-primary border-primary' : 'border-teal-300 hover:border-primary'}"
             aria-label="Marcar tarefa como concluída" data-id="${task.id}">
             ${task.status === 'done' ? `<svg class="w-3 h-3 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>` : ''}
           </button>
-          <span class="text-sm font-500 text-brand-text truncate ${task.status === 'done' ? 'line-through text-brand-muted' : ''}">${task.title}</span>
+          <span class="text-sm font-500 truncate ${task.status === 'done' ? 'line-through text-brand-muted' : 'text-brand-text'}">${task.title}</span>
         </div>
         <span class="hidden sm:block text-xs text-brand-muted font-500">${task.project}</span>
-        <span class="hidden sm:block text-xs text-brand-muted">${task.due}</span>
+        <span class="hidden sm:block text-xs ${overdue ? 'text-red-500 font-600' : 'text-brand-muted'}">${formatDue(task.due)}</span>
         <span class="hidden sm:inline-flex"><span class="pill text-xs px-2 py-0.5 rounded-full font-500 ${statusClass[task.status]}">${statusLabel[task.status]}</span></span>
         <span class="hidden sm:inline-flex"><span class="pill text-xs px-2 py-0.5 rounded-full font-500 ${priorityClass[task.priority]}">${priorityLabel[task.priority]}</span></span>
       `;
       list.appendChild(row);
     });
 
-    /* toggle checkbox */
     list.querySelectorAll('.checkbox-custom').forEach(btn => {
       btn.addEventListener('click', e => {
         e.stopPropagation();
         const id = Number(btn.dataset.id);
-        const t = tasks.find(t => t.id === id);
-        if (t) { t.status = t.status === 'done' ? 'todo' : 'done'; renderTasks(); }
+        const t  = tasks.find(t => t.id === id);
+        if (t) { t.status = t.status === 'done' ? 'todo' : 'done'; updateDashboard(); }
       });
     });
+  }
+
+  /* ── Unified update ── */
+  function updateDashboard() {
+    saveTasks();
+    renderStats();
+    renderProjects();
+    renderTasks();
   }
 
   /* ── Tabs ── */
@@ -355,34 +430,9 @@
       });
       btn.classList.add('bg-primary/10','text-primary');
       btn.classList.remove('text-brand-muted','hover:bg-teal-50');
-      renderTasks();
+      renderTasks(); // filter-only: no need to persist or recalc stats
     });
   });
-
-  /* ── Project progress ── */
-  function renderProjects() {
-    const container = document.getElementById('project-progress');
-    projects.forEach(p => {
-      const pct = Math.round((p.done / p.total) * 100);
-      const el = document.createElement('div');
-      el.innerHTML = `
-        <div class="flex items-center justify-between mb-1.5">
-          <span class="text-xs font-600 text-brand-text">${p.name}</span>
-          <span class="text-xs text-brand-muted">${p.done}/${p.total}</span>
-        </div>
-        <div class="w-full h-2 bg-teal-50 rounded-full overflow-hidden">
-          <div class="progress-bar h-full rounded-full" style="width:0%; background:${p.color};" data-target="${pct}"></div>
-        </div>
-      `;
-      container.appendChild(el);
-    });
-    /* animate bars after paint */
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-      document.querySelectorAll('.progress-bar').forEach(bar => {
-        bar.style.width = bar.dataset.target + '%';
-      });
-    }));
-  }
 
   /* ── Chart ── */
   function initChart() {
@@ -397,22 +447,18 @@
             data: [5,8,6,9,7,4,6],
             borderColor: '#0D9488',
             backgroundColor: 'rgba(13,148,136,0.08)',
-            tension: 0.4,
-            fill: true,
+            tension: 0.4, fill: true,
             pointBackgroundColor: '#0D9488',
-            pointRadius: 4,
-            pointHoverRadius: 6,
+            pointRadius: 4, pointHoverRadius: 6,
           },
           {
             label: 'Concluídas',
             data: [3,6,8,5,9,6,5],
             borderColor: '#F97316',
             backgroundColor: 'rgba(249,115,22,0.06)',
-            tension: 0.4,
-            fill: true,
+            tension: 0.4, fill: true,
             pointBackgroundColor: '#F97316',
-            pointRadius: 4,
-            pointHoverRadius: 6,
+            pointRadius: 4, pointHoverRadius: 6,
           },
         ],
       },
@@ -427,9 +473,8 @@
           tooltip: {
             backgroundColor: '#134E4A',
             titleFont: { family: 'Plus Jakarta Sans', weight: '600' },
-            bodyFont: { family: 'Plus Jakarta Sans' },
-            padding: 10,
-            cornerRadius: 8,
+            bodyFont:  { family: 'Plus Jakarta Sans' },
+            padding: 10, cornerRadius: 8,
           },
         },
         scales: {
@@ -441,9 +486,9 @@
   }
 
   /* ── Modal ── */
-  const modal    = document.getElementById('modal');
-  const form     = document.getElementById('task-form');
-  const titleIn  = document.getElementById('task-title');
+  const modal   = document.getElementById('modal');
+  const form    = document.getElementById('task-form');
+  const titleIn = document.getElementById('task-title');
 
   function openModal()  { modal.classList.remove('hidden'); modal.classList.add('flex'); titleIn.focus(); }
   function closeModal() { modal.classList.add('hidden');    modal.classList.remove('flex'); form.reset(); }
@@ -463,22 +508,21 @@
     const txt     = document.getElementById('submit-text');
     const spinner = document.getElementById('submit-spinner');
 
-    /* loading state */
     btn.disabled = true;
     txt.textContent = 'Criando...';
     spinner.classList.remove('hidden');
 
     setTimeout(() => {
-      const newTask = {
-        id:       tasks.length + 1,
+      const nextId = tasks.length ? Math.max(...tasks.map(t => t.id)) + 1 : 1;
+      tasks.unshift({
+        id:       nextId,
         title,
         project:  document.getElementById('task-project').value,
         due:      document.getElementById('task-due').value || '—',
         status:   'todo',
         priority: document.getElementById('task-priority').value,
-      };
-      tasks.unshift(newTask);
-      renderTasks();
+      });
+      updateDashboard();
       closeModal();
 
       btn.disabled = false;
@@ -488,8 +532,7 @@
   });
 
   /* ── Init ── */
-  renderTasks();
-  renderProjects();
+  updateDashboard();
   initChart();
 </script>
 </body>
